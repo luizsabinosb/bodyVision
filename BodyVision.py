@@ -36,10 +36,10 @@ class PoseDetector:
             errors.append("Cotovelo esquerdo muito baixo")
         if right_elbow_height > right_shoulder_height:
             errors.append("Cotovelo direito muito baixo")
-        if not 45 <= left_angle <= 80:
-            errors.append("Angulo do braco esquerdo fora do intervalo (45-80 graus)")
-        if not 45 <= right_angle <= 80:
-            errors.append("Angulo do braco direito fora do intervalo (45-80 graus)")
+        if not 30 <= left_angle <= 80:
+            errors.append("Angulo do braco esquerdo fora do intervalo (30-80 graus)")
+        if not 30 <= right_angle <= 80:
+            errors.append("Angulo do braco direito fora do intervalo (30-80 graus)")
         if errors:
             return "Posicao incorreta - " + "; ".join(errors) + "."
         return "Posicao correta - Excelente postura!"
@@ -94,20 +94,32 @@ class PoseDetector:
                 pose_quality = f"Modo '{pose_mode}' ainda nao implementado"
 
             font = cv2.FONT_HERSHEY_SIMPLEX
-            # Aplica cor verde para pose correta, vermelha para incorreta
             text_color = (0, 255, 0) if pose_quality.startswith("Posicao correta") or "centralizado" in pose_quality else (0, 0, 255)
 
-            # Desenha as linhas dos braços e os ângulos
             for side in ["LEFT", "RIGHT"]:
                 cv2.line(frame, points[f"{side}_SHOULDER"], points[f"{side}_ELBOW"], (255, 255, 0), 2)
                 cv2.line(frame, points[f"{side}_ELBOW"], points[f"{side}_WRIST"], (255, 255, 0), 2)
                 angle = angle_left if side == "LEFT" else angle_right
                 cv2.putText(frame, f"{int(angle)}°", points[f"{side}_ELBOW"], font, 0.7, (139, 0, 0), 2)
 
-            # Exibe texto centralizado indicando a qualidade da pose
-            text_size, _ = cv2.getTextSize(pose_quality, font, 1.2, 2)
-            x_center = (w - text_size[0]) // 2
-            cv2.putText(frame, f"Qualidade: {pose_quality}", (x_center, 50), font, 1.2, text_color, 3)
+            # Ajusta quebra de linha manual para textos longos
+            lines = []
+            max_chars = 70
+            while len(pose_quality) > max_chars:
+                split_index = pose_quality.rfind(';', 0, max_chars)
+                if split_index == -1:
+                    split_index = max_chars
+                lines.append(pose_quality[:split_index + 1].strip())
+                pose_quality = pose_quality[split_index + 1:].strip()
+            lines.append(pose_quality)
+
+            y = 20
+            for line in lines:
+                text_size, _ = cv2.getTextSize(line, font, 0.8, 2)
+                x_center = (w - text_size[0]) // 2
+                cv2.rectangle(frame, (x_center - 20, y), (x_center + text_size[0] + 20, y + 40), (0, 0, 0), -1)
+                cv2.putText(frame, line, (x_center, y + 30), font, 0.8, text_color, 2)
+                y += 45
 
         return frame
 
@@ -135,24 +147,19 @@ def main():
         frame = cv2.resize(frame, (1920, 1080))
         frame = detector.process_frame(frame, pose_mode)
 
-        # Exibe FPS no canto superior esquerdo
+        # Exibe FPS e Modo em posições mais baixas para não sobrepor texto principal
         curr_time = time.time()
         fps = 1 / (curr_time - prev_time)
         prev_time = curr_time
-        cv2.putText(frame, f"FPS: {int(fps)}", (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        cv2.putText(frame, f"FPS: {int(fps)}", (30, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+        cv2.putText(frame, f"Modo: {pose_mode}", (30, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (100, 255, 255), 2)
 
-        # Instruções de uso no canto inferior direito
         instruction_text = "Pressione 'Q' para sair | '1': Biceps | '2': Enquadramento"
         text_size, _ = cv2.getTextSize(instruction_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
         cv2.putText(frame, instruction_text, (1920 - text_size[0] - 30, 1080 - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 200), 2)
 
-        # Indica o modo atual no canto superior esquerdo
-        cv2.putText(frame, f"Modo: {pose_mode}", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (100, 255, 255), 2)
-
-        # Exibe o frame
         cv2.imshow(window_name, frame)
 
-        # Alterna os modos com teclas 1 e 2
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
