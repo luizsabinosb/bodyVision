@@ -35,7 +35,7 @@ O projeto já possui um ambiente virtual configurado com todas as dependências 
 **macOS/Linux:**
 ```bash
 # Navegar até a pasta do projeto
-cd /Users/luizsabino/Desktop/BodyVision
+cd /caminho/ate/diretorio/BodyVision
 
 # Ativar o ambiente virtual
 source venv/bin/activate
